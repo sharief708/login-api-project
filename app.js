@@ -16,4 +16,5 @@ app.post("/login", (req, res) => {
 app.listen(3000, () => {
   console.log("Login API feature branch update");
   console.log("Login API update for PR");
+  console.log("CI pipeline test");
 });
