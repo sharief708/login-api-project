@@ -4,7 +4,7 @@ const app = express();
 app.use(express.json());
 
 app.post("/login", (req, res) => {
-  const { username, ord } = req.body;
+  const { username, password } = req.body;
 
   if (username === "admin" && password === "1234") {
     return res.json({ message: "Login successfully" });
