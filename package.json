@@ -6,14 +6,10 @@
 "type": "commonjs",
 "scripts": {
 "start": "node app.js",
-"lint": "npx eslint .",
+"lint": "node ./node_modules/eslint/bin/eslint.js .",
 "test": "node test/login.test.js"
 },
-"keywords": [
-"devops",
-"ci",
-"github-actions"
-],
+"keywords": ["devops","ci","github-actions"],
 "author": "Umar Sharief",
 "license": "ISC",
 "dependencies": {
