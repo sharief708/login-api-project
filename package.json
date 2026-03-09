@@ -1,16 +1,1 @@
-{
-  "name": "devops-project",
-  "version": "1.0.0",
-  "description": "",
-  "main": "app.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "express": "^5.2.1"
-  }
-}
+{"name":"devops-project","version":"1.0.0","description":"Login API with CI pipeline","main":"app.js","type":"commonjs","scripts":{"start":"node app.js","lint":"eslint .","test":"node test/login.test.js"},"keywords":["devops","ci","github-actions"],"author":"Umar Sharief","license":"ISC","dependencies":{"express":"^5.2.1"},"devDependencies":{"eslint":"^8.57.0","supertest":"^6.3.4"}}
