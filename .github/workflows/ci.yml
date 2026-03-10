@@ -12,8 +12,6 @@ branches:
 jobs:
 build:
 runs-on: ubuntu-latest
-
-```
 steps:
   - name: Checkout Code
     uses: actions/checkout@v3
@@ -34,4 +32,4 @@ steps:
 
   - name: Run Tests
     run: npm test || echo "No tests configured"
-```
+
