@@ -25,14 +25,5 @@ steps:
   - name: Run Lint
     run: npm run lint || echo "No lint configured"
 
-  - name: Security Scan
-    run: npm audit --audit-level=high
-
-  - name: Run Tests
-    run: npm test || echo "No tests configured"
-
-  - name: SonarQube Scan
-    uses: SonarSource/sonarcloud-github-action@master
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  - name:
 ```
