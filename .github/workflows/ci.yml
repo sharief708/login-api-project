@@ -1,37 +1,154 @@
 name: CI Pipeline
 
 on:
-push:
-branches:
-- main
-- login-api
-pull_request:
-branches:
-- main
+  pull_request:
+    branches: [ main, develop ]
+    types: [ opened, synchronize, reopened ]
+  push:
+    branches: [ main, develop ]
 
 jobs:
-build:
-runs-on: ubuntu-latest
+  # PR Validation Job
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-```
-steps:
-  - name: Checkout Code
-    uses: actions/checkout@v3
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
 
-  - name: Setup Node.js
-    uses: actions/setup-node@v3
-    with:
-      node-version: 18
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-  - name: Install Dependencies
-    run: npm install
+      - name: Install Dependencies
+        run: npm ci
 
-  - name: Run Lint
-    run: npm run lint || echo "No lint configured"
+      - name: Run Lint
+        run: npm run lint || echo "No lint configured"
 
-  - name: Security Scan
-    run: npm audit --audit-level=high || true
+      - name: Security Scan
+        run: npm audit --audit-level=high || true
 
-  - name: Run Tests
-    run: npm test || echo "No tests configured"
-```
+      - name: Run Tests
+        run: npm test -- --coverage || echo "No tests configured"
+
+  # SonarQube Analysis
+  sonarqube:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }}
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
+            -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
+
+  # Build and Deploy (on merge)
+  build-and-deploy:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    needs: [validate, sonarqube]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Application
+        run: npm run build || echo "No build configured"
+
+      - name: Create Build Artifact
+        run: |
+          tar -czf build-${{ github.sha }}.tar.gz dist/ || echo "No dist folder found"
+          echo "BUILD_VERSION=${{ github.sha }}" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date)" >> $GITHUB_ENV
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-${{ github.sha }}
+          path: |
+            *.tar.gz
+            !node_modules
+
+      - name: Send Email Notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{secrets.MAIL_USERNAME}}
+          password: ${{secrets.MAIL_PASSWORD}}
+          subject: |
+            Build ${{ job.status }} - ${{ github.repository }} (${{ github.sha }})
+          to: team@example.com, devops@example.com
+          from: GitHub Actions
+          body: |
+            Build Status: ${{ job.status }}
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            
+            Triggered by: ${{ github.actor }}
+            
+            Build Version: ${{ env.BUILD_VERSION }}
+            Build Date: ${{ env.BUILD_DATE }}
+            
+            See details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Send Webhook Notification
+        if: always()
+        run: |
+          curl -X POST ${{ secrets.WEBHOOK_URL }} \
+            -H "Content-Type: application/json" \
+            -d '{
+              "status": "${{ job.status }}",
+              "repository": "${{ github.repository }}",
+              "branch": "${{ github.ref }}",
+              "commit": "${{ github.sha }}",
+              "actor": "${{ github.actor }}",
+              "build_version": "${{ env.BUILD_VERSION }}",
+              "build_date": "${{ env.BUILD_DATE }}",
+              "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }'
+
+  # Status Check for PR
+  pr-status-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: [validate, sonarqube]
+    steps:
+      - name: Check all statuses
+        run: |
+          echo "✅ All checks passed!"
+          echo "Validation: ${{ needs.validate.result }}"
+          echo "SonarQube: ${{ needs.sonarqube.result }}"
