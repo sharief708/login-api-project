@@ -1,31 +1,38 @@
 name: CI Pipeline
 
 on:
-  pull_request:
-    branches:
-      - main
+pull_request:
+branches:
+- main
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+build:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+```
+steps:
+  - name: Checkout Code
+    uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
+  - name: Setup Node.js
+    uses: actions/setup-node@v3
+    with:
+      node-version: 18
 
-      - name: Install Dependencies
-        run: npm install
+  - name: Install Dependencies
+    run: npm install
 
-      - name: Run Lint
-        run: npm run lint || echo "No lint configured"
+  - name: Run Lint
+    run: npm run lint || echo "No lint configured"
 
-      - name: Security Scan
-        run: npm audit --audit-level=high
+  - name: Security Scan
+    run: npm audit --audit-level=high
 
-      - name: Run Tests
-        run: npm test || echo "No tests configured"
+  - name: Run Tests
+    run: npm test || echo "No tests configured"
+
+  - name: SonarQube Scan
+    uses: SonarSource/sonarcloud-github-action@master
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+```
